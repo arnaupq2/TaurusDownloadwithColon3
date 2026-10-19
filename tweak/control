@@ -1,0 +1,7 @@
+Package: com.spotipw
+Name: Taurus
+Architecture: iphoneos-arm
+Description: Liquid Glass for the Spotify iOS app
+Maintainer: Taurus
+Author: Taurus
+Section: Tweaks
