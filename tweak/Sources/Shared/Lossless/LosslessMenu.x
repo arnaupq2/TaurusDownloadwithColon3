@@ -222,8 +222,14 @@ static void install(UIViewController *menu) {
     if (width <= 0) return;
     SGLosslessRow *row = objc_getAssociatedObject(menu, &kRowKey);
     if (!row) {
-        if (!freeSlot(table.tableFooterView)) {
-            SGLog(@"lossless: the menu's footer is %@, Add lossless file left out", NSStringFromClass(table.tableFooterView.class));
+        // Download lossless (LosslessDownload.x) takes the header when it can, else the footer; either way a
+        // row of ours already in the footer leaves nothing here — one shared "Lossless" row per menu.
+        UIView *footer = table.tableFooterView;
+        // Ours: SGLosslessRow (this file) or SLLosslessDownloadRow (LosslessDownload.x).
+        NSString *footerClass = NSStringFromClass(footer.class);
+        BOOL ours = [footerClass hasPrefix:@"SGLossless"] || [footerClass hasPrefix:@"SLLossless"];
+        if (!freeSlot(footer) && !ours) {
+            SGLog(@"lossless: the menu's footer is %@, Add lossless file left out", NSStringFromClass(footer.class));
             objc_setAssociatedObject(menu, &kDecidedKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             return;
         }

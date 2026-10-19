@@ -638,7 +638,8 @@ static void install(UIViewController *menu) {
                   table.tableHeaderView ? NSStringFromClass(table.tableHeaderView.class) : @"none",
                   table.tableFooterView ? NSStringFromClass(table.tableFooterView.class) : @"none", structure);
         }
-        BOOL headerFree = !table.tableHeaderView || table.tableHeaderView.bounds.size.height < 1;
+        BOOL headerFree = !table.tableHeaderView || table.tableHeaderView.bounds.size.height < 1
+                          || [NSStringFromClass(table.tableHeaderView.class) hasPrefix:@"SLLossless"];
         BOOL footerFree = !table.tableFooterView || table.tableFooterView.bounds.size.height < 1;
         if (!headerFree && !footerFree) {
             SGLog(@"speed and pitch: the table's header and footer are both Spotify's, speed and pitch left out");
