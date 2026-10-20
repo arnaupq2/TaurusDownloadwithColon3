@@ -218,7 +218,7 @@ static UIColor *SGRainbowTextColor(CGFloat width, CGFloat height, double phase) 
     for (NSString *name in all) {
         if ([extensions containsObject:name.pathExtension.lowercaseString] &&
             ![name hasPrefix:@"."] &&
-            [[NSFileManager.defaultManager attributesOfItemAtPath:[directory stringByAppendingPathComponent:name] error:nil] fileType] != NSFileTypeDirectory) {
+            ![[[NSFileManager.defaultManager attributesOfItemAtPath:[directory stringByAppendingPathComponent:name] error:nil] objectForKey:NSFileType] isEqualToString:NSFileTypeDirectory]) {
             [files addObject:name];
         }
     }
