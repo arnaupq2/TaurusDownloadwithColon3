@@ -1,0 +1,57 @@
+#import "Core/SGCore.h"
+#import "Settings/SGPageStyle.h"
+#import "About.h"
+#import "App/Onboarding/Onboarding.h"
+
+static void resetAll(void) {
+    NSUserDefaults *store = NSUserDefaults.standardUserDefaults;
+    NSUInteger removed = 0;
+    for (NSString *key in [store persistentDomainForName:NSBundle.mainBundle.bundleIdentifier].allKeys) {
+        if (![key hasPrefix:@"spotifyglass."]) continue;
+        [store removeObjectForKey:key];
+        removed++;
+    }
+    [store setBool:YES forKey:SGKeyStock];
+    SGLog(@"reset: removed %lu keys", (unsigned long)removed);
+    SGRestartSpotify();
+}
+
+static void confirmReset(void) {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Reset all settings?"
+                                                                  message:@"Every switch goes off, flag overrides and the tab bar layout are cleared, and Spotify restarts as it came, with the mod doing nothing until asked. Spotify's own settings are untouched."
+                                                           preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Reset and restart" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) { resetAll(); }]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [SGTopController() presentViewController:alert animated:YES completion:nil];
+}
+
+static SGModRow *withSymbol(SGModRow *row, NSString *symbol) {
+    row.symbol = symbol;
+    return row;
+}
+
+// Build details, licenses, settings backup and reset.
+UIViewController *SGAboutPage(void) {
+    SGModRow *reset = withSymbol(SGActionRow(@"Reset all settings", nil, ^{ confirmReset(); }), @"trash");
+    reset.color = SGRed();
+    NSString *spotify = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"unknown";
+    NSMutableArray<SGModSection *> *sections = [NSMutableArray arrayWithObject:SGSection(nil, @[
+        SGStatRow(@"Version", ^NSString *{ return @(SG_VERSION); }),
+        SGStatRow(@"Spotify", ^NSString *{ return spotify; }),
+    ])];
+    SGModRow *appIcon = SGAppIconRow();
+    if (appIcon) [sections addObject:SGSection(nil, @[withSymbol(appIcon, @"app")])];
+    [sections addObjectsFromArray:@[
+        SGSection(nil, @[
+            withSymbol(SGPageRow(@"Licenses", ^UIViewController *{ return SGLicensesPage(); }), @"doc.text"),
+            withSymbol(SGPageRow(@"Device logs", ^UIViewController *{ return SGDeviceLogsPage(); }), @"list.bullet.rectangle"),
+            withSymbol(SGActionRow(@"Welcome tour", nil, ^{ SGShowOnboarding(); }), @"map"),
+        ]),
+        SGSection(nil, @[
+            withSymbol(SGActionRow(@"Export settings", nil, ^{ SGExportSettings(); }), @"square.and.arrow.up"),
+            withSymbol(SGActionRow(@"Import settings", nil, ^{ SGImportSettings(); }), @"square.and.arrow.down"),
+        ]),
+        SGSection(nil, @[reset]),
+    ]];
+    return [[SGModPage alloc] initWithTitle:@"Mod" intro:nil sections:sections footer:nil];
+}
