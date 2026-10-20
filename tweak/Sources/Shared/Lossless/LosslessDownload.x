@@ -5,9 +5,8 @@
 // place of Spotify's stream (Lossless.x). It goes to Lossless, never to the lossy folder. The song keeps playing
 // on Spotify's sound while it comes; when the file lands its own track re-anchors at once.
 //
-// The row is a control of the mod's (SG…) in the table's footer, stacked over Add lossless file (LosslessMenu.x)
-// by SGLosslessFooter.h. The header is Speed and pitch's in the player's menu, so it is not used here; the
-// redesigned sheet only picks up SG… rows, which is why the class is not SL….
+// The single download row is installed in the context-menu footer by SGLosslessFooter.h.
+// The manual file-import row has been removed; completed files are listed in Taurus Settings > Downloads.
 #import <objc/runtime.h>
 #import "Core/SGCore.h"
 #import "Settings/SGPageStyle.h"
@@ -23,7 +22,7 @@ static char kRowKey, kDecidedKey;
 
 #pragma mark - the icon
 
-// A cloud with an arrow into a tray: what comes off the P2P network, not off Files.
+// A cloud with an arrow into a tray for a lossless download.
 static UIImage *cloudGlyph(UIColor *color) {
     CGFloat side = kIconSide;
     UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(side, side)];
@@ -151,7 +150,7 @@ static UIViewController *topOf(UIViewController *presenter) {
             _bar.hidden = YES;
             break;
         case SLProgressQueued:
-            _status.text = [@"Waiting for an upload slot" stringByAppendingString:from];
+            _status.text = [@"Preparing download" stringByAppendingString:from];
             _bar.hidden = YES;
             break;
         case SLProgressTransferring:
@@ -295,11 +294,10 @@ static void install(UIViewController *menu) {
     BOOL created = !row;
     if (created) {
         row = [[SGLosslessDownloadRow alloc] initWithFrame:CGRectMake(0, 0, width, kRowHeight)];
-        row.tag = 1;   // over Add lossless file in the shared footer box (SGLosslessFooter.h)
+        row.tag = 1;   // sole row in the shared footer box (SGLosslessFooter.h)
         row.menu = menu;
     }
-    // The header is Speed and pitch's in the player's menu, so the row lives in the footer, next to Add lossless
-    // file. Called on every layout so it goes back when Spotify replaces the footer or the table changes width.
+    // The single download row lives in the footer. Called on every layout so it returns when Spotify replaces the footer or the table changes width.
     if (!SGLosslessFooterPlace(table, row, width, kRowHeight)) {
         if (created) {
             SGLog(@"lossless: the menu's footer is %@, Download lossless left out", NSStringFromClass(table.tableFooterView.class));
