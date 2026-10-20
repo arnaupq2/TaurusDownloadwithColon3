@@ -18,6 +18,7 @@
 #import "Shared/ListeningStats/ListeningStats.h"
 #import "App/About/About.h"
 #import "Pages.h"
+#import "Shared/Lossless/SGLosslessStore.h"
 
 static const CGFloat kRowHeight = 56;
 static char kRowKey, kInsetKey;
@@ -188,6 +189,99 @@ static UIColor *SGRainbowTextColor(CGFloat width, CGFloat height, double phase) 
 
 @end
 
+@interface SGLosslessDownloadsPage : SGPage
+@end
+
+@implementation SGLosslessDownloadsPage {
+    NSArray<NSString *> *_files;
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"Downloads";
+    self.tableView.tableFooterView = [UIView new];
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemRefresh
+        target:self action:@selector(reloadFiles)];
+    [self reloadFiles];
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    [self reloadFiles];
+}
+
+- (void)reloadFiles {
+    NSString *directory = SGLosslessStoreDirectory();
+    NSArray<NSString *> *all = [NSFileManager.defaultManager contentsOfDirectoryAtPath:directory error:nil] ?: @[];
+    NSSet *extensions = [NSSet setWithArray:@[@"flac", @"m4a", @"caf", @"wav", @"aiff", @"alac"]];
+    NSMutableArray *files = [NSMutableArray array];
+    for (NSString *name in all) {
+        if ([extensions containsObject:name.pathExtension.lowercaseString] &&
+            ![name hasPrefix:@"."] &&
+            [[NSFileManager.defaultManager attributesOfItemAtPath:[directory stringByAppendingPathComponent:name] error:nil] fileType] != NSFileTypeDirectory) {
+            [files addObject:name];
+        }
+    }
+    [files sortUsingSelector:@selector(localizedCaseInsensitiveCompare:)];
+    _files = files;
+    [self.tableView reloadData];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return _files.count ?: 1;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"lossless-download"] ?:
+        [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"lossless-download"];
+    cell.backgroundColor = SGCardBackground();
+    cell.accessoryType = UITableViewCellAccessoryNone;
+    if (!_files.count) {
+        cell.textLabel.text = @"No downloads yet";
+        cell.detailTextLabel.text = @"Downloaded lossless tracks will appear here.";
+        cell.textLabel.textColor = SGGrey();
+        cell.detailTextLabel.textColor = SGGrey();
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        return cell;
+    }
+    NSString *name = _files[(NSUInteger)indexPath.row];
+    NSString *path = [SGLosslessStoreDirectory() stringByAppendingPathComponent:name];
+    NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
+    unsigned long long bytes = [attributes fileSize];
+    NSString *size = bytes >= 1000000000 ? [NSString stringWithFormat:@"%.2f GB", bytes / 1000000000.0] :
+        (bytes >= 1000000 ? [NSString stringWithFormat:@"%.1f MB", bytes / 1000000.0] :
+         [NSString stringWithFormat:@"%.0f KB", bytes / 1000.0]);
+    cell.textLabel.text = name.stringByDeletingPathExtension;
+    cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ · %@", name.pathExtension.uppercaseString, size];
+    cell.textLabel.textColor = UIColor.labelColor;
+    cell.detailTextLabel.textColor = SGGrey();
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    return cell;
+}
+
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
+    return _files.count > 0;
+}
+
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)style forRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (style != UITableViewCellEditingStyleDelete || indexPath.row >= (NSInteger)_files.count) return;
+    NSString *path = [SGLosslessStoreDirectory() stringByAppendingPathComponent:_files[(NSUInteger)indexPath.row]];
+    NSError *error = nil;
+    if (![NSFileManager.defaultManager removeItemAtPath:path error:&error]) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Couldn't delete file"
+            message:error.localizedDescription ?: @"The file could not be removed." preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+    }
+    [self reloadFiles];
+}
+
+@end
+
+static UIViewController *losslessDownloadsPage(void) {
+    return [SGLosslessDownloadsPage new];
+}
+
 static UIViewController *miscSettingsPage(void) {
     SGModRow *hideSigning = SGHideRow(@"Hide the lock screen alert", @"Hide the notice that this build cannot be opened from the lock screen", SGKeyHideSigningWarning);
     SGModRow *hideDiscord = SGHideRow(@"Hide the Discord banner", @"Hide the row here that advertises the Discord server", SGKeyHideDiscordBanner);
@@ -230,6 +324,7 @@ static UIViewController *modSettingsPage(void) {
         pageRow(@"Appearance", @"paintpalette", ^UIViewController *{ return SGAppearanceSettingsPage(); }),
         pageRow(@"Navbar", @"dock.rectangle", ^UIViewController *{ return SGNavbarPage(); }),
         pageRow(@"Player", @"play.circle", ^UIViewController *{ return SGPlayerSettingsPage(); }),
+        pageRow(@"Downloads", @"arrow.down.circle", ^UIViewController *{ return losslessDownloadsPage(); }),
         pageRow(@"Lyrics", @"quote.bubble", ^UIViewController *{ return SGLyricsSettingsPage(); }),
         pageRow(@"Lock Screen", @"lock.iphone", ^UIViewController *{ return SGLockScreenSettingsPage(); }),
         audioEffects,
